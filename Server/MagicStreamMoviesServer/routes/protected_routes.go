@@ -9,7 +9,6 @@ import (
 
 func SetupProtectedRoutes(router *gin.Engine, client *mongo.Client) {
 	router.Use(middleware.AuthMiddleWare())
-
 	router.GET("/movies/:imdb_id", controllers.GetMovie(client))
 	router.POST("/addmovie", controllers.AddMovie(client))
 	router.GET("/recommendedmovies", controllers.GetRecommendedMovies(client))
