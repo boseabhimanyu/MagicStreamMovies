@@ -38,19 +38,20 @@ It also demonstrates how **MongoDB** can serve as a reliable, scalable database 
 
 To run this project, you will need to add the following environment variables to your .env file
 
+'''
+DATABASE_NAME=<db_name>
 
-`DATABASE_NAME`=<dbname>
+MONGODB_URI=<mongo_uri>
 
-`MONGODB_URI`=<mongo_uri>
+SECRET_KEY=<any_randon_text_string>
 
-`SECRET_KEY`=<any_randon_text_string>
+SECRET_REFRESH_KEY=<any_randon_text_string>
 
-`SECRET_REFRESH_KEY`=<any_randon_text_string>
+BASE_PROMPT_TEMPLATE=Return a response using one of these words: {rankings}. The reposne should be a single word and should not contain any other text. The response should be based on the following review:
 
-`BASE_PROMPT_TEMPLATE`=Return a response using one of these words: {rankings}. The reposne should be a single word and should not contain any other text. The response should be based on the following review:
+OPENAI_API_KEY=<open_api_key>
 
-`OPENAI_API_KEY`=<open_api_key>
+RECOMMENDED_MOVIE_LIMIT=5
 
-`RECOMMENDED_MOVIE_LIMIT`=5
-
-`ALLOWED_ORIGINS`=http://localhost:3000,http://localhost:5173,http://localhost:8080
+ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173,http://localhost:8080
+'''
