@@ -38,7 +38,7 @@ It also demonstrates how **MongoDB** can serve as a reliable, scalable database 
 
 To run this project, you will need to add the following environment variables to your .env file
 
-'''
+```
 DATABASE_NAME=<db_name>
 
 MONGODB_URI=<mongo_uri>
@@ -54,4 +54,4 @@ OPENAI_API_KEY=<open_api_key>
 RECOMMENDED_MOVIE_LIMIT=5
 
 ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173,http://localhost:8080
-'''
+```
