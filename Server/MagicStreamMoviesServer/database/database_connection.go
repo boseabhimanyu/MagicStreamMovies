@@ -47,7 +47,7 @@ func OpenCollection(collectionName string, client *mongo.Client) *mongo.Collecti
 
 	databaseName := os.Getenv("DATABASE_NAME")
 
-	fmt.Println("DATABASE_NAME", databaseName)
+	//fmt.Println("DATABASE_NAME", databaseName)
 	// database uri and database
 	collection := client.Database(databaseName).Collection(collectionName)
 

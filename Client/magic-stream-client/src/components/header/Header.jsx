@@ -5,11 +5,12 @@ import NavbarToggle from 'react-bootstrap/esm/NavbarToggle'
 import Nav from 'react-bootstrap/Nav'
 import Navbar from 'react-bootstrap/Navbar'
 import {useNavigate, NavLink, Link} from 'react-router-dom'
+import useAuth from '../../hook/useAuth'
 
 
 const Header = ()=> {
     const navigate = useNavigate();
-    const [auth, setAuth] = useState(false);
+    const {auth} = useAuth();
 
     return (
 <Navbar bg='dark' variant='dark' expand='lg' className='shadow-sm'>
@@ -34,7 +35,7 @@ const Header = ()=> {
   
         <>
         <span>
-            Hello, <strong>Name</strong>
+            Hello, <strong>{auth.first_name}</strong>
         </span>
         <Button variant="outline-light">
             Logout
