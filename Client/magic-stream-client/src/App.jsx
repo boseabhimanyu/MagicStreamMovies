@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import './App.css'
 import Home from './components/home/Home';
+import Recommended from './components/recommended/Recommended';
 import Header from './components/header/Header'
 import Register from './components/register/Register';
 import Login from './components/login/Login';
 import { Route, Routes, useNavigate } from 'react-router-dom';
 import Layout from './components/Layout';
 import RequiredAuth from './components/RequiredAuth';
+
 function App() {
 
   return (
@@ -16,8 +18,9 @@ function App() {
         <Route path='/' element={<Home />}></Route>
         <Route path='/register' element={<Register />}></Route>
         <Route path='/login' element={<Login />}></Route>
-        <Route element = {<RequiredAuth />} />
-
+        <Route element = {<RequiredAuth />} >
+            <Route path='/recommended' element={<Recommended />}></Route>
+          </Route>
       </Routes>
     </>
   )
