@@ -8,7 +8,7 @@ import {useNavigate, NavLink, Link} from 'react-router-dom'
 import useAuth from '../../hook/useAuth'
 
 
-const Header = ()=> {
+const Header = ({handleLogout})=> {
     const navigate = useNavigate();
     const {auth} = useAuth();
 
@@ -34,10 +34,10 @@ const Header = ()=> {
     {auth ? (
   
         <>
-        <span>
+        <span className='me-3 text-light'>
             Hello, <strong>{auth.first_name}</strong>
         </span>
-        <Button variant="outline-light">
+        <Button variant="outline-light" size='sm' onClick={handleLogout}>
             Logout
         </Button>
         </>
