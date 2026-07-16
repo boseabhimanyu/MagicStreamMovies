@@ -184,53 +184,52 @@ func AdminReviewUpdate(client *mongo.Client) gin.HandlerFunc {
 
 func GetReviewRanking(admin_review string, client *mongo.Client, c *gin.Context) (string, int, error) {
 	rankings, err := GetRankings(client, c)
-
 	if err != nil {
 		return "", 0, err
 	}
 
 	sentimentDelimited := ""
-
 	for _, ranking := range rankings {
 		if ranking.RankingValue != 999 {
 			sentimentDelimited = sentimentDelimited + ranking.RankingName + ","
 		}
 	}
-
 	sentimentDelimited = strings.Trim(sentimentDelimited, ",")
 
-	err = godotenv.Load(".env")
-
-	if err != nil {
-		log.Println("Warning: .env file not found")
-	}
-
+	_ = godotenv.Load(".env") // Simplified error handling for dev environment
 	OpenAiApiKey := os.Getenv("OPENAI_API_KEY")
 
+	// --- OPENAI EXECUTION BLOCK WITH FALLBACK ---
+	var response string
+	var openAiErr error
+
 	if OpenAiApiKey == "" {
-		return "", 0, errors.New("could not read OPENAI_API_KEY")
+		openAiErr = errors.New("missing OpenAI API Key")
+	} else {
+		llm, err := openai.New(openai.WithToken(OpenAiApiKey))
+		if err != nil {
+			openAiErr = err
+		} else {
+			base_prompt_template := os.Getenv("BASE_PROMPT_TEMPLATE")
+			base_prompt := strings.Replace(base_prompt_template, "{rankings}", sentimentDelimited, 1)
+
+			// Call the LLM
+			response, openAiErr = llm.Call(context.Background(), base_prompt+admin_review)
+			// Trim whitespace/newlines often returned by LLMs
+			response = strings.TrimSpace(response)
+		}
 	}
 
-	llm, err := openai.New(openai.WithToken(OpenAiApiKey))
-
-	if err != nil {
-		return "", 0, err
+	// If OpenAI failed or key is missing, trigger the offline engine
+	if openAiErr != nil {
+		log.Printf("OpenAI API error: %v. Switching to Offline Fallback System...", openAiErr)
+		return fallbackReviewRanking(admin_review, rankings)
 	}
-
-	base_prompt_template := os.Getenv("BASE_PROMPT_TEMPLATE")
-
-	base_prompt := strings.Replace(base_prompt_template, "{rankings}", sentimentDelimited, 1)
-
-	response, err := llm.Call(context.Background(), base_prompt+admin_review)
-
-	if err != nil {
-		return "", 0, err
-	}
+	// --------------------------------------------
 
 	rankVal := 0
-
 	for _, ranking := range rankings {
-		if ranking.RankingName == response {
+		if strings.EqualFold(ranking.RankingName, response) {
 			rankVal = ranking.RankingValue
 			break
 		}
@@ -388,4 +387,61 @@ func GetGenres(client *mongo.Client) gin.HandlerFunc {
 		c.JSON(http.StatusOK, genres)
 
 	}
+}
+
+func fallbackReviewRanking(adminReview string, rankings []models.Ranking) (string, int, error) {
+	adminReviewLower := strings.ToLower(adminReview)
+
+	// 1. Scan the text to see if the admin explicitly used one of the database ranking words
+	for _, ranking := range rankings {
+		if ranking.RankingValue == 999 {
+			continue
+		}
+		// If the text contains the exact word (e.g., "Excellent"), instantly match it
+		if strings.Contains(adminReviewLower, strings.ToLower(ranking.RankingName)) {
+			return ranking.RankingName, ranking.RankingValue, nil
+		}
+	}
+
+	// 2. Simple sentiment heuristic fallback mapping keywords to standard database structures
+	positiveKeywords := []string{"good", "great", "awesome", "excellent", "love", "amazing", "best", "masterpiece"}
+	negativeKeywords := []string{"bad", "terrible", "worst", "boring", "hate", "awful", "poor", "waste"}
+
+	// Check for positive keywords
+	for _, word := range positiveKeywords {
+		if strings.Contains(adminReviewLower, word) {
+			return findRankingByNameOrFallback([]string{"Positive", "Good", "Excellent"}, rankings)
+		}
+	}
+
+	// Check for negative keywords
+	for _, word := range negativeKeywords {
+		if strings.Contains(adminReviewLower, word) {
+			return findRankingByNameOrFallback([]string{"Negative", "Bad", "Poor"}, rankings)
+		}
+	}
+
+	// 3. Absolute default if no clear indicators are found (acts as "Neutral")
+	return findRankingByNameOrFallback([]string{"Neutral", "Average", "Ok"}, rankings)
+}
+
+// Helper to gracefully grab the first matching option available in your MongoDB rankings array
+func findRankingByNameOrFallback(preferredNames []string, rankings []models.Ranking) (string, int, error) {
+	// Try to find a match among preferred naming conventions
+	for _, name := range preferredNames {
+		for _, r := range rankings {
+			if strings.EqualFold(r.RankingName, name) {
+				return r.RankingName, r.RankingValue, nil
+			}
+		}
+	}
+
+	// Absolute safety fallback: return the first non-999 ranking available in the DB
+	for _, r := range rankings {
+		if r.RankingValue != 999 {
+			return r.RankingName, r.RankingValue, nil
+		}
+	}
+
+	return "Neutral", 2, nil
 }
