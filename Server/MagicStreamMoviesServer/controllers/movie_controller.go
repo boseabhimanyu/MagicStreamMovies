@@ -392,42 +392,81 @@ func GetGenres(client *mongo.Client) gin.HandlerFunc {
 func fallbackReviewRanking(adminReview string, rankings []models.Ranking) (string, int, error) {
 	adminReviewLower := strings.ToLower(adminReview)
 
-	// 1. Scan the text to see if the admin explicitly used one of the database ranking words
+	// =========================================================================
+	// STEP 1: Negation Detection (MOVED TO TOP)
+	// =========================================================================
+	// Catch phrases like "not good" or "not bad" first so they don't trigger substring matches.
+	if strings.Contains(adminReviewLower, "not good") || strings.Contains(adminReviewLower, "not great") || strings.Contains(adminReviewLower, "not ok") {
+		return findRankingByNameOrFallback([]string{"Bad", "Terrible"}, rankings)
+	}
+	if strings.Contains(adminReviewLower, "not bad") {
+		return findRankingByNameOrFallback([]string{"Good", "Excellent"}, rankings)
+	}
+
+	// =========================================================================
+	// STEP 2: Exact Ranking Name Match
+	// =========================================================================
+	// Now safe to do exact matching since negations were handled.
 	for _, ranking := range rankings {
 		if ranking.RankingValue == 999 {
 			continue
 		}
-		// If the text contains the exact word (e.g., "Excellent"), instantly match it
 		if strings.Contains(adminReviewLower, strings.ToLower(ranking.RankingName)) {
 			return ranking.RankingName, ranking.RankingValue, nil
 		}
 	}
 
-	// 2. Simple sentiment heuristic fallback mapping keywords to standard database structures
-	positiveKeywords := []string{"good", "great", "awesome", "excellent", "love", "amazing", "best", "masterpiece"}
-	negativeKeywords := []string{"bad", "terrible", "worst", "boring", "hate", "awful", "poor", "waste"}
+	// =========================================================================
+	// STEP 3: Intensity-Based Sentiment Mapping (Extreme Sentiment)
+	// =========================================================================
+	extremePositive := []string{"amazing", "masterpiece", "excellent", "awesome", "perfect", "best"}
+	extremeNegative := []string{"terrible", "worst", "awful", "horrible", "waste", "garbage"}
 
-	// Check for positive keywords
+	for _, word := range extremePositive {
+		if strings.Contains(adminReviewLower, word) {
+			return findRankingByNameOrFallback([]string{"Excellent", "Good"}, rankings)
+		}
+	}
+	for _, word := range extremeNegative {
+		if strings.Contains(adminReviewLower, word) {
+			return findRankingByNameOrFallback([]string{"Terrible", "Bad"}, rankings)
+		}
+	}
+
+	// =========================================================================
+	// STEP 4: Standard Keyword Sentiment Scoring
+	// =========================================================================
+	positiveKeywords := []string{"good", "great", "love", "nice", "fine", "happy", "liked"}
+	negativeKeywords := []string{"bad", "boring", "hate", "poor", "dislike", "annoying", "wrong"}
+
+	posScore := 0
+	negScore := 0
+
 	for _, word := range positiveKeywords {
 		if strings.Contains(adminReviewLower, word) {
-			return findRankingByNameOrFallback([]string{"Positive", "Good", "Excellent"}, rankings)
+			posScore++
 		}
 	}
-
-	// Check for negative keywords
 	for _, word := range negativeKeywords {
 		if strings.Contains(adminReviewLower, word) {
-			return findRankingByNameOrFallback([]string{"Negative", "Bad", "Poor"}, rankings)
+			negScore++
 		}
 	}
 
-	// 3. Absolute default if no clear indicators are found (acts as "Neutral")
-	return findRankingByNameOrFallback([]string{"Neutral", "Average", "Ok"}, rankings)
+	if posScore > negScore {
+		return findRankingByNameOrFallback([]string{"Good", "Excellent"}, rankings)
+	} else if negScore > posScore {
+		return findRankingByNameOrFallback([]string{"Bad", "Terrible"}, rankings)
+	}
+
+	// =========================================================================
+	// STEP 5: Balanced/Neutral Absolute Fallback
+	// =========================================================================
+	return findRankingByNameOrFallback([]string{"Okay"}, rankings)
 }
 
-// Helper to gracefully grab the first matching option available in your MongoDB rankings array
 func findRankingByNameOrFallback(preferredNames []string, rankings []models.Ranking) (string, int, error) {
-	// Try to find a match among preferred naming conventions
+
 	for _, name := range preferredNames {
 		for _, r := range rankings {
 			if strings.EqualFold(r.RankingName, name) {
@@ -443,5 +482,5 @@ func findRankingByNameOrFallback(preferredNames []string, rankings []models.Rank
 		}
 	}
 
-	return "Neutral", 2, nil
+	return "Okay", 3, nil
 }
